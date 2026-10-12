@@ -1,0 +1,35 @@
+name: Remarkable prospect website audit
+
+on:
+  workflow_dispatch:
+  # Optional: Uncomment these two lines to audit once a week at 08:00 UTC Monday.
+  # schedule:
+  #   - cron: '0 8 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies and Chromium
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
+      - name: Audit websites
+        run: python auditor.py --input prospects.csv --out results --max-sites 20
+      - name: Upload report and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: remarkable-prospect-audit
+          path: results/
+          if-no-files-found: warn
+          retention-days: 30
