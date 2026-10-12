@@ -1,7 +1,7 @@
-company,website,query,search_url_template
-First4Magnets,https://www.first4magnets.com,neodymium magnets,
-Tufferman,https://www.tufferman.co.uk,garage shelving,
-Micro Scooters,https://www.micro-scooters.co.uk,scooter wheels,
-Sophie Allport,https://www.sophieallport.com,mug,
-Early Years Resources,https://www.earlyyearsresources.co.uk,sensory toys,
-Cheeky Rascals,https://www.cheekyrascals.co.uk,bottle steriliser,
+company,website,query,queries,search_url_template
+First4Magnets,https://www.first4magnets.com,neodymium magnets,countersunk magnets|magnetic hooks,
+Tufferman,https://www.tufferman.co.uk,garage shelving,heavy duty shelving|metal shelving,
+Micro Scooters,https://www.micro-scooters.co.uk,scooter wheels,replacement scooter wheel|scooter helmet,
+Sophie Allport,https://www.sophieallport.com,mug,hedgehog mug|bedding,
+Early Years Resources,https://www.earlyyearsresources.co.uk,sensory toys,tuff tray|wooden blocks,
+Cheeky Rascals,https://www.cheekyrascals.co.uk,bottle steriliser,high chair|baby accessories,

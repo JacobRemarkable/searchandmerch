@@ -4,6 +4,7 @@ The execution environment may block all browser navigation, so we use set_conten
 instead of simulated HTTP. The production GitHub workflow performs real navigation.
 """
 import tempfile
+import shutil
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -39,7 +40,7 @@ class AuditTests(unittest.TestCase):
             (out/'screenshots').mkdir()
             row = {'company':'Example retailer', 'website':'https://example.com', 'query':'garage shelving', 'search_url_template':''}
             with sync_playwright() as pw:
-                browser = pw.chromium.launch(headless=True, executable_path='/usr/bin/chromium')
+                browser = pw.chromium.launch(headless=True, **({'executable_path':shutil.which('chromium')} if shutil.which('chromium') else {}))
                 with mock.patch.object(auditor, 'load_public', side_effect=fake_load), mock.patch.object(auditor, 'do_search', side_effect=fake_search):
                     audit = auditor.test_site(browser, row, out, {}, 0.01)
                 browser.close()

@@ -1,73 +1,76 @@
-# Remarkable Commerce — Prospect Website Auditor
+# Remarkable Commerce — Prospect Website Auditor v2
 
-An evidence-first, *low-volume* browser check for **public retailer websites**. Designed to support personal LinkedIn prospecting, **not** to assert that a retailer has poor search or to produce a scientifically valid conversion score.
+**Search & Merch prospect research, not website fault-finding.** This is a low-volume browser-based auditor for *public retail websites*. Its purpose is to give Remarkable/Beanstalk a better-informed conversation opener. It cannot prove conversion impact, lost revenue or an ineffective search solution.
 
-## What it does
+## Upgrade your existing GitHub repository
 
-For every company in `prospects.csv`, it opens the public homepage and attempts a genuine onsite search for your chosen query. It then:
+Repository: `https://github.com/JacobRemarkable/searchandmerch`
 
-- records the **observed search URL** and a screenshot of the first result page;
-- samples up to **eight visible product tiles** where the page's markup is recognisable;
-- detects explicitly labelled **out-of-stock / sold-out** tiles (visibility isn't automatically bad);
-- detects visible **sort and filtering controls**;
-- attempts a native **sort dropdown interaction** where available;
-- tests a harmless, improbable search term and detects whether a **clear no-results message** appears;
-- creates a standalone `report.html`, Excel-friendly `prospect_audit.csv`, and `evidence.json`.
-
-Each report differentiates observed facts from unknowns. It **does not** prove that sorting is correct, that filters work as users expect, that a search result is genuinely irrelevant, that a retailer uses a particular search vendor, or that a merchandising issue reduces revenue. Sites built with unusual components will often need human inspection or a site-specific adapter.
-
-## Easiest option — GitHub (no command line required after setup)
-
-1. Create a **new private GitHub repository**. Don't add this to FormationHUB or another unrelated project.
-2. Upload the contents of this folder, **including** `.github/workflows/audit.yml` (keep the folder structure).
-3. Edit `prospects.csv` with the retailer/company, public website URL, and **one ordinary product search term**. Optional `search_url_template` supports a search URL you have verified; use `{query}` as the placeholder.
-4. Open your repository's **Actions** tab → **Remarkable prospect website audit** → **Run workflow**.
-5. After the run, click **remarkable-prospect-audit** under **Artifacts** to get `report.html`, `prospect_audit.csv`, `evidence.json`, and screenshots. **Unzip everything first**; open `report.html` in a browser so the screenshot links work.
-
-The schedule is **off by default**. To enable a weekly scan, uncomment the `schedule` lines in `.github/workflows/audit.yml`. GitHub scheduled workflow times are in UTC and may be delayed. Scheduled actions need a repository with workflows permitted by your organisation.
-
-## Run locally (Mac / Windows)
-
-Prerequisites: Python 3.12+ and an internet connection.
+1. Download `Remarkable_Website_Auditor_v2.zip` and upload it to the Codespaces file explorer **inside** `/workspaces/searchandmerch`.
+2. Open the Codespaces terminal and run:
 
 ```bash
-pip install -r requirements.txt
-python -m playwright install chromium
-python auditor.py --input prospects.csv --out results
+cd /workspaces/searchandmerch
+unzip -o Remarkable_Website_Auditor_v2.zip -d .
+python -m py_compile auditor.py
+git add auditor.py requirements.txt prospects.csv README.md tests .github/workflows/audit.yml
+git commit -m "Upgrade Remarkable auditor to v2"
+git push origin main
 ```
 
-Open `results/report.html`. Import the CSV into HubSpot or Excel if useful.
+3. Open **GitHub → searchandmerch → Actions → Remarkable prospect website audit → Run workflow**, with branch `main`.
+4. Once it finishes, download the **remarkable-prospect-audit** artifact. Unzip it, then open `report.html`.
 
-## Input columns
+The workflow now **runs offline tests before** accessing any websites. If the tests fail, the browser audit is not attempted.
 
-| Column | Required | Example |
-|---|---|---|
-| company | Yes | First4Magnets |
-| website | Yes | https://www.first4magnets.com |
-| query | Yes | neodymium magnets |
-| search_url_template | No | https://example.com/search?q={query} |
+## What's new in v2
 
-Keep to around 5–20 relevant domains per run. One query, one no-results query and (where applicable) one sort action per domain. The tool uses a minimum one-second delay on each request and respects robots.txt. It doesn't log in, accept marketing cookies, add to basket, submit orders or bypass bot challenges. If robots or anti-bot controls prevent testing, it records that and stops. Test websites only with a legitimate business purpose, and respect each site's usage policies.
+- **Overlay handling:** recognises explicit cookie/location pop-ups and may choose *Reject all / Necessary only* or **UK** when appropriate. It does **not** accept optional marketing cookies or bypass anti-bot challenges.
+- **Broader search detection:** sees visible search fields, accessible search controls, search toggles and several common icon-only header buttons.
+- **Product tile fallback:** samples up to 12 actual product-like items per search, using structured selectors and conservative product-link/price recognition when the layout is unfamiliar.
+- **Custom sort and filter recognition:** detects both native selectors and custom "Sort By" controls; captures explicit filter labels such as Availability, Price, Colour, Size, Compatibility and Material. Custom sort controls are *observed*, not auto-clicked.
+- **Multiple searches per retailer:** original required `query` plus optional `queries` separated by `|`, **maximum three per retailer**. Each query gets its own screenshot.
+- **Two levels of export:** `prospect_audit.csv` (one row per company), `query_audit.csv` (one row per search), `evidence.json`, and `report.html` with evidence links.
+- **P1/P2/P3 research priority:** automatically sorts *review signals*, not deal size, confirmed problems, or likelihood to buy. A site with incomplete tests is marked **Unrated**. All outreach angles are phrased as discovery questions, not accusations.
+- **Offline browser tests:** covers overlays, consent, custom search, custom filters/sort, structured product discovery, multi-query grading and robots restrictions.
 
-## Turning an audit into a sensible LinkedIn opening
+## Editing the CSV
 
-- **Observed fact:** “I was reviewing how product filters work across your shelving range.”
-- **Question:** “How much of a focus is specification-based product discovery for your ecommerce team?”
-- **Offer:** “Happy to share a couple of practical ideas if it’s relevant.”
+```csv
+company,website,query,queries,search_url_template
+Example Shop,https://www.example.com,red shoes,leather boots|trainers,
+```
 
-Never tell a prospect their search is "broken" from a heuristic report. An out-of-stock item in results could be intentional. A zero title-token match could be correct due to synonyms, product codes or category intent.
+- `company`, `website` and `query` are required (the old CSV format **still works**).
+- `queries` is optional. Separate additional searches with `|`; maximum 3 in total. Don't use searches containing personal information.
+- `search_url_template` is optional for known, verified search URLs, e.g. `https://www.example.com/search?q={query}`. The template must stay on the same host and obey robots.txt.
+- Keep the batch small (5–20 shops). The workflow has a 45-minute maximum runtime.
+- Scraping contacts, logging in, submitting orders, defeating bot checks or ignoring robots.txt is **not permitted** by the script.
 
-## What I'd add in V2
+## How to interpret the new report
 
-- Add site-specific adapters to test exact user journeys (e.g. size, dimension, compatibility).
-- Capture mobile vs desktop screenshots and Core Web Vitals from established measurement services.
-- Connect to HubSpot *after* deduplicating company records and approving the outreach observations.
-- Build a small web form so Beanstalk can submit URLs and retrieve the evidence pack without visiting GitHub.
+**Observed:** Directly detected in the browser (e.g. "12 product cards sampled", "visible sort control", "2 cards labelled sold out").
 
-## Troubleshooting
+**Review signal:** Something to inspect as a human (e.g. a sold-out tile or low literal query-term overlap). The retail site may be deliberately configured that way and the observation is not evidence of a mistake.
 
-- **`search input not detected`:** Search might be hidden behind a nonstandard icon, built inside a custom component, or require a verified `search_url_template` in the CSV.
-- **`robots_blocked` / `access_blocked`:** Leave it untested. Do not try to evade the restriction.
-- **No tiles detected:** Generic product markup isn't consistent across sites. You can still review the screenshot. This is *not* the same as a zero-result search.
-- **No reordering after selecting sort:** The report marks it *unverified*, not broken.
-- **GitHub Actions absent:** Check that Actions is enabled for the repository, and that `.github/workflows/audit.yml` was uploaded to the default branch.
+**Inconclusive:** The auditor couldn't reliably complete a test. It does **not** mean search is bad or broken. When a site blocks automated checks, the audit stops and its status is `robots_blocked` / `access_blocked`.
+
+**Priority** is for deciding which accounts to research next, not for making claims. P1: multiple review signals across at least 2 tested queries; P2: at least 1 review signal; P3: sample completed without a review signal; Unrated: insufficient evidence.
+
+## Outputs
+
+| File | Use |
+|---|---|
+| `report.html` | Clear research report with observed findings, query screenshots and possible commercial conversation starters |
+| `prospect_audit.csv` | One row per retailer for an initial HubSpot/company research list |
+| `query_audit.csv` | Individual query-by-query data suitable for internal review |
+| `evidence.json` | Full structured audit, observed product samples, flags and URLs |
+| `screenshots/` | Screenshot evidence per query |
+
+This is **not live-audited** from the development environment. The GitHub Actions run is the real-world check. Before Beanstalk uses a finding, a person must inspect the screenshot and verify the site behaviour.
+
+## Privacy and rollout
+
+Your GitHub repo is currently public. Please switch it to **private** before adding commercial prospect notes, account contacts or other confidential information. The supplied starter CSV has public company names and URLs only.
+
+The recurring weekly schedule remains **disabled** while version 2 is being validated. You can enable it manually in `.github/workflows/audit.yml` after checking the first set of live results. For any changes to a website, verify new results rather than relying on older screenshots.
