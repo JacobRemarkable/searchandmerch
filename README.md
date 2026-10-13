@@ -1,76 +1,73 @@
-# Remarkable Commerce — Prospect Website Auditor v2
+# Remarkable Commerce — Search & Merch Prospect Opportunity Board (v3)
 
-**Search & Merch prospect research, not website fault-finding.** This is a low-volume browser-based auditor for *public retail websites*. Its purpose is to give Remarkable/Beanstalk a better-informed conversation opener. It cannot prove conversion impact, lost revenue or an ineffective search solution.
+**Purpose:** Find a credible reason to contact a retailer. This is a visual sales-research tool, not a technical site-quality score or a proof of lost conversions.
 
-## Upgrade your existing GitHub repository
+The browser auditor checks a few public search results, records screenshots and samples the visible product tiles. The new **Opportunity Board** puts those screenshots next to a short Search angle, Merch angle and LinkedIn discovery question.
 
-Repository: `https://github.com/JacobRemarkable/searchandmerch`
+## Install v3 in your existing GitHub Codespace
 
-1. Download `Remarkable_Website_Auditor_v2.zip` and upload it to the Codespaces file explorer **inside** `/workspaces/searchandmerch`.
-2. Open the Codespaces terminal and run:
+Upload `Remarkable_Opportunity_Board_v3.zip` to your Codespace, then run:
 
 ```bash
 cd /workspaces/searchandmerch
-unzip -o Remarkable_Website_Auditor_v2.zip -d .
-python -m py_compile auditor.py
-git add auditor.py requirements.txt prospects.csv README.md tests .github/workflows/audit.yml
-git commit -m "Upgrade Remarkable auditor to v2"
+unzip -o Remarkable_Opportunity_Board_v3.zip -d .
+python -m py_compile auditor.py prospect_dashboard.py
+git add auditor.py prospect_dashboard.py README.md prospects.csv requirements.txt tests .github/workflows/audit.yml
+git commit -m "Add Remarkable Search and Merch opportunity board"
 git push origin main
 ```
 
-3. Open **GitHub → searchandmerch → Actions → Remarkable prospect website audit → Run workflow**, with branch `main`.
-4. Once it finishes, download the **remarkable-prospect-audit** artifact. Unzip it, then open `report.html`.
+Open [GitHub Actions](https://github.com/JacobRemarkable/searchandmerch/actions/workflows/audit.yml), choose **Run workflow**, select `main`, and run. The workflow executes local tests before the live scan.
 
-The workflow now **runs offline tests before** accessing any websites. If the tests fail, the browser audit is not attempted.
+On completion, download and **extract** the `remarkable-prospect-audit` artifact. Open **`opportunity_dashboard.html`**; this is the main sales-facing report. Extracting matters, because screenshots are in the adjacent `screenshots/` folder.
 
-## What's new in v2
+## What the new board shows
 
-- **Overlay handling:** recognises explicit cookie/location pop-ups and may choose *Reject all / Necessary only* or **UK** when appropriate. It does **not** accept optional marketing cookies or bypass anti-bot challenges.
-- **Broader search detection:** sees visible search fields, accessible search controls, search toggles and several common icon-only header buttons.
-- **Product tile fallback:** samples up to 12 actual product-like items per search, using structured selectors and conservative product-link/price recognition when the layout is unfamiliar.
-- **Custom sort and filter recognition:** detects both native selectors and custom "Sort By" controls; captures explicit filter labels such as Availability, Price, Colour, Size, Compatibility and Material. Custom sort controls are *observed*, not auto-clicked.
-- **Multiple searches per retailer:** original required `query` plus optional `queries` separated by `|`, **maximum three per retailer**. Each query gets its own screenshot.
-- **Two levels of export:** `prospect_audit.csv` (one row per company), `query_audit.csv` (one row per search), `evidence.json`, and `report.html` with evidence links.
-- **P1/P2/P3 research priority:** automatically sorts *review signals*, not deal size, confirmed problems, or likelihood to buy. A site with incomplete tests is marked **Unrated**. All outreach angles are phrased as discovery questions, not accusations.
-- **Offline browser tests:** covers overlays, consent, custom search, custom filters/sort, structured product discovery, multi-query grading and robots restrictions.
-
-## Editing the CSV
-
-```csv
-company,website,query,queries,search_url_template
-Example Shop,https://www.example.com,red shoes,leather boots|trainers,
-```
-
-- `company`, `website` and `query` are required (the old CSV format **still works**).
-- `queries` is optional. Separate additional searches with `|`; maximum 3 in total. Don't use searches containing personal information.
-- `search_url_template` is optional for known, verified search URLs, e.g. `https://www.example.com/search?q={query}`. The template must stay on the same host and obey robots.txt.
-- Keep the batch small (5–20 shops). The workflow has a 45-minute maximum runtime.
-- Scraping contacts, logging in, submitting orders, defeating bot checks or ignoring robots.txt is **not permitted** by the script.
-
-## How to interpret the new report
-
-**Observed:** Directly detected in the browser (e.g. "12 product cards sampled", "visible sort control", "2 cards labelled sold out").
-
-**Review signal:** Something to inspect as a human (e.g. a sold-out tile or low literal query-term overlap). The retail site may be deliberately configured that way and the observation is not evidence of a mistake.
-
-**Inconclusive:** The auditor couldn't reliably complete a test. It does **not** mean search is bad or broken. When a site blocks automated checks, the audit stops and its status is `robots_blocked` / `access_blocked`.
-
-**Priority** is for deciding which accounts to research next, not for making claims. P1: multiple review signals across at least 2 tested queries; P2: at least 1 review signal; P3: sample completed without a review signal; Unrated: insufficient evidence.
+- **Review first:** A visible signal may be worth investigating (e.g., unavailable products in sampled results, very low literal title-term overlap, or technical exclusion syntax displayed in the search heading). This is **not a confirmed defect**.
+- **Discovery fit:** Search results were observed and could support a Search/Merch conversation, but **no specific defect was identified**.
+- **Manual review:** The test was inconclusive or the site restricted automated access. The auditor won't label it poorly performing or invent a weakness. For permitted storefronts where search is not recognised, v3 now saves a homepage-only screenshot to aid manual inspection.
+- **Screenshot-first cards:** View the search-results screenshot, sampled products, the question to ask, and a link to the result page. The user can filter by lead category and copy the opener.
 
 ## Outputs
 
-| File | Use |
+| File | What to do with it |
 |---|---|
-| `report.html` | Clear research report with observed findings, query screenshots and possible commercial conversation starters |
-| `prospect_audit.csv` | One row per retailer for an initial HubSpot/company research list |
-| `query_audit.csv` | Individual query-by-query data suitable for internal review |
-| `evidence.json` | Full structured audit, observed product samples, flags and URLs |
-| `screenshots/` | Screenshot evidence per query |
+| `opportunity_dashboard.html` | **Start here.** Visual, sortable-by-priority opportunity cards and screenshots |
+| `opportunity_shortlist.csv` | One retailer per row. Paste/import the prospecting angles into HubSpot |
+| `report.html` | Original evidence-centric technical report (v2, retained) |
+| `prospect_audit.csv` | One row per retailer with raw audit signals |
+| `query_audit.csv` | One row per search query (includes captured search heading) |
+| `evidence.json` | Full structured observations; use to regenerate the board |
+| `screenshots/` | The actual browser screenshots; keep next to HTML when sharing |
 
-This is **not live-audited** from the development environment. The GitHub Actions run is the real-world check. Before Beanstalk uses a finding, a person must inspect the screenshot and verify the site behaviour.
+## Add prospects
 
-## Privacy and rollout
+Edit `prospects.csv` (no coding required):
 
-Your GitHub repo is currently public. Please switch it to **private** before adding commercial prospect notes, account contacts or other confidential information. The supplied starter CSV has public company names and URLs only.
+```csv
+company,website,query,queries,search_url_template
+Example Store,https://www.example.com,red boots,leather boots|women's trainers,
+```
 
-The recurring weekly schedule remains **disabled** while version 2 is being validated. You can enable it manually in `.github/workflows/audit.yml` after checking the first set of live results. For any changes to a website, verify new results rather than relying on older screenshots.
+`company`, `website` and `query` are required. `queries` adds up to two extra searches separated with `|` (max three total). The last column is optional, for a **verified** search URL template like `https://www.example.com/search?q={query}`. A template is checked against robots.txt like any other page.
+
+Keep batches at 5–20 stores; the GitHub job times out after 45 minutes. `robots.txt`, CAPTCHA, access blocks, logins, private pages, purchases and automated contact extraction remain off-limits.
+
+## Sales-team use: 3-minute validation before outreach
+
+1. Open an account card and enlarge its screenshot.
+2. Repeat the query in a normal browser. Make sure the observed issue is real, still present, and not an intentional ecommerce choice.
+3. If there is no verified issue, talk about opportunities and business objectives **without claiming the site is broken**.
+4. Log the result in HubSpot and use the provided discovery question, personalised to the observation.
+
+The board avoids fake conversion scores, made-up potential ROI and unverified competitive technology claims. A low keyword/title match is a **weak heuristic**, since valid synonyms and product descriptions may not contain the query words. A visible sort/filter control is **not** evidence of a problem.
+
+## Offline processing (without rescanning)
+
+If you have an old report artifact and want the new opportunity view:
+
+```bash
+python prospect_dashboard.py --input results/evidence.json --out results
+```
+
+The scheduled workflow remains **disabled** until real-world accuracy has been checked. The GitHub repository is currently public; make it private before placing confidential prospect research or client information in the repo.

@@ -478,6 +478,23 @@ def extract_products(page, cap=12):
     return best
 
 
+def visible_search_heading(page):
+    '''Capture a visible search heading without claiming it is a product result.'''
+    try:
+        root = page.locator('main,[role="main"]').first
+        if not root.count():
+            root = page.locator('body').first
+        heads = root.locator('h1,h2,[role="heading"]').all()[:12]
+        for h in heads:
+            if h.is_visible():
+                label = re.sub(r'\s+', ' ', h.inner_text(timeout=1000)).strip()
+                if 8 < len(label) <= 450:
+                    return label
+    except Exception:
+        pass
+    return ''
+
+
 def detect_sort(page):
     '''Both native selects and custom buttons/comboboxes count as UI visibility.'''
     native = visible_first(page, 'select[name*="sort" i], select[id*="sort" i], select[aria-label*="sort" i]')
@@ -631,6 +648,9 @@ def recommend_angle(audit):
 
 
 def _record_observations(audit, q):
+    if re.search(r'(?<!\w)-(?:tag|type|collection|filter)\s*:', q.get('search_heading',''), re.I):
+        audit.observations.append({'type': 'review_signal', 'query': q['query'],
+                                   'text': 'Customer-facing search heading contains technical filter syntax; verify visually'})
     if q['product_cards_detected']:
         audit.observations.append({
             'type': 'fact', 'query': q['query'],
@@ -674,7 +694,7 @@ def test_site(browser, row, out, robots_cache, pause, screenshot=True):
                   'search_url':'', 'search_input_found':'unknown', 'product_cards_detected':0,
                   'products':[], 'out_of_stock_cards':0, 'query_title_overlap':'not_assessed',
                   'sort_control':'unknown', 'sort_test':'not_tested', 'filter_control':'unknown',
-                  'filter_labels':'', 'overlay_action':'none', 'screenshot':'', 'notes':''}
+                  'filter_labels':'', 'overlay_action':'none', 'screenshot':'', 'search_heading':'', 'notes':''}
             try:
                 note = load_public(page, website, robots_cache, pause)
                 if number == 1:
@@ -683,10 +703,21 @@ def test_site(browser, row, out, robots_cache, pause, screenshot=True):
                 method, searchurl, found = do_search(page, query, template, website, robots_cache, pause)
                 qr['search_method'], qr['search_url'], qr['search_input_found'] = method, searchurl, found
                 if method == 'not_available':
-                    qr['notes'] = 'Search control not recognised; manual review required'
+                    qr['notes'] = 'Search control not recognised; manual review required (homepage screenshot only, not search evidence)'
+                    # A screenshot still lets sales staff inspect the visible storefront.
+                    # Do not label it as search testing or score any defect from it.
+                    if screenshot and number == 1:
+                        name = f'screenshots/{safe_slug(company)}-homepage.png'
+                        try:
+                            page.screenshot(path=str(out / name), animations='disabled',
+                                            full_page=False, timeout=8000)
+                            qr['screenshot'] = name
+                        except Exception as e:
+                            qr['notes'] += f' Screenshot unavailable ({type(e).__name__}).'
                     audit.queries_inconclusive += 1
                 else:
                     qr['search_url'] = page.url
+                    qr['search_heading'] = visible_search_heading(page)
                     qr['products'] = extract_products(page)
                     qr['product_cards_detected'] = len(qr['products'])
                     qr['out_of_stock_cards'] = sum(p['sold_out_badge'] for p in qr['products'])
@@ -878,7 +909,7 @@ def main(argv=None):
         writer.writerows(a.csv_row() for a in audits)
     per_query_columns = ['company','website','review_priority','query','status','search_method',
                          'search_url','product_cards_detected','out_of_stock_cards','query_title_overlap',
-                         'sort_control','sort_test','filter_control','filter_labels','overlay_action','screenshot','notes']
+                         'sort_control','sort_test','filter_control','filter_labels','overlay_action','search_heading','screenshot','notes']
     with (out / 'query_audit.csv').open('w',encoding='utf-8-sig',newline='') as f:
         writer = csv.DictWriter(f, fieldnames=per_query_columns)
         writer.writeheader()
