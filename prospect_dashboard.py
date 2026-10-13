@@ -52,17 +52,33 @@ def analyse(a):
               and int(q.get('product_cards_detected') or 0) > 0]
     company, website = a.get('company', ''), a.get('website', '')
     if not tested:
+        category = next((q for q in a.get('query_results', [])
+                         if q.get('status') == 'category_observed'
+                         and int(q.get('product_cards_detected') or 0) > 0), None)
+        if category:
+            count = int(category.get('product_cards_detected') or 0)
+            controls = [name for name, key in [('filters','filter_control'),('sorting','sort_control')]
+                        if category.get(key) in ('visible','visible_custom')]
+            evidence = (f"Public product category was captured with {count} sampled product tiles"
+                        + (f" and visible {', '.join(controls)}" if controls else '') +
+                        '. This is not search testing and no performance issue is proven.')
+            return Prospect(company,website,'Discovery fit',1,
+                'Search not assessed — no negative claim',
+                'Category merchandising observed — discuss trading controls',
+                evidence,'Public category observation only',
+                'How does your team control product ranking, availability and seasonal merchandising across categories?',
+                'Only qualify as a discovery conversation, not a claimed website issue.',
+                category.get('query',''), category.get('search_url',''),category.get('screenshot',''),
+                count, f'Category sample: {count} product tiles')
         blocked = a.get('status') in ('robots_blocked', 'access_blocked')
-        note = ('Site restricts automated access; respect its access rules.' if blocked
-                else 'Automated test could not reliably capture product results.')
+        note = ('Site restricts the automated checks. No website weakness inferred.' if blocked
+                else 'Search/category evidence could not be captured automatically. No website weakness inferred.')
         screenshot = next((q.get('screenshot') for q in a.get('query_results', [])
                            if q.get('screenshot')), '')
-        if screenshot:
-            note += ' A homepage screenshot is available, but it is not product-search evidence.'
-        return Prospect(company, website, 'Manual review', 3, 'Unknown', 'Unknown', note,
-            'No usable automated product evidence',
-            'How do shoppers find a specific item on this site? Is there a visible discovery opportunity?',
-            'Open the public storefront manually and record a real example before outreach',
+        return Prospect(company, website, 'Not assessable', 3, 'Not assessed', 'Not assessed', note,
+            'Insufficient verified evidence — excluded from action queue',
+            'No evidence-based claim available from this scan.',
+            'Set aside. Do not assign a manual test or personalised defect outreach automatically.',
             screenshot=screenshot)
 
     opportunities = []
@@ -149,7 +165,7 @@ def esc(v):
 
 def render(records, output):
     counts = {bucket: sum(r.bucket == bucket for r in records)
-              for bucket in ('Review first','Discovery fit','Manual review')}
+              for bucket in ('Review first','Discovery fit','Not assessable')}
     tiles = []
     for r in records:
         if r.bucket == 'Review first':
@@ -157,7 +173,7 @@ def render(records, output):
         elif r.bucket == 'Discovery fit':
             label, tagcls = 'Discovery fit', 'tag-blue'
         else:
-            label, tagcls = 'Needs manual check', 'tag-gray'
+            label, tagcls = 'Not assessable', 'tag-gray'
         if r.screenshot:
             # Only accept local generated screenshots (not external URLs).
             path = Path(r.screenshot)
@@ -169,7 +185,7 @@ def render(records, output):
         visual = (f'<a href="{esc(r.screenshot)}" target="_blank" rel="noopener">'
                   f'<img loading="lazy" alt="Recorded search evidence for {esc(r.company)}" src="{esc(r.screenshot)}">'
                   f'<span>Enlarge screenshot ↗</span></a>' if valid else
-                  '<div class="image-empty">Screenshot unavailable · manual check required</div>')
+                  '<div class="image-empty">No permitted screenshot captured</div>')
         query_link = (f'<a target="_blank" rel="noopener" href="{esc(r.search_url)}">View sampled search ↗</a>'
                       if r.search_url and urlparse(r.search_url).scheme in ('http', 'https') else '')
         queries = ''.join(f'<details><summary>{esc(q.get("query"))} · {esc(q.get("product_cards_detected"))} sampled items</summary>'
@@ -208,14 +224,14 @@ details{border-top:1px solid var(--line);padding-top:10px;margin-top:13px}summar
 @media print{header{padding:16px}.filters,.actions{display:none}.prospect{break-inside:avoid}.photo img{min-height:140px;max-height:180px}.content{padding:14px}main{padding:12px}}
 </style></head><body><header><div class="eyebrow">REMARKABLE COMMERCE · SEARCH + MERCH</div><h1>Website opportunity shortlist</h1>
 <p>See the retail experience, spot credible questions and start better conversations. This is research, not proof of lost revenue or a defective technology platform.</p></header>
-<main><section class="summary"><div class="metric"><b>__REV__</b><span>Visible signals to review</span></div><div class="metric"><b>__DISC__</b><span>Discovery conversations</span></div><div class="metric"><b>__MAN__</b><span>Manual reviews needed</span></div></section>
-<div class="note"><b>How to use this:</b> Open the screenshot, repeat the exact search in a normal browser, and only then personalise outreach. A detected filter or sorting control is not a weakness. Low keyword matches are an imperfect proxy, not a search accuracy score. Blocked websites are not treated as poorly performing.</div>
-<nav class="filters" aria-label="Filter opportunities"><button type="button" class="active" data-filter="all">All prospects</button><button type="button" data-filter="Review first">Review first</button><button type="button" data-filter="Discovery fit">Discovery fit</button><button type="button" data-filter="Manual review">Manual review</button></nav>
+<main><section class="summary"><div class="metric"><b>__REV__</b><span>Visible signals to review</span></div><div class="metric"><b>__DISC__</b><span>Discovery conversations</span></div><div class="metric"><b>__MAN__</b><span>Set aside · insufficient evidence</span></div></section>
+<div class="note"><b>How to use this:</b> Open the screenshot, repeat the exact search in a normal browser, and only then personalise outreach. A detected filter or sorting control is not a weakness. Low keyword matches are an imperfect proxy, not a search accuracy score. Restricted/inconclusive websites are set aside, not sent to a manual-testing queue.</div>
+<nav class="filters" aria-label="Filter opportunities"><button type="button" class="active" data-filter="all">All prospects</button><button type="button" data-filter="Review first">Review first</button><button type="button" data-filter="Discovery fit">Discovery fit</button><button type="button" data-filter="Not assessable">Set aside</button></nav>
 __CARDS__<footer>Generated from public pages with low-volume checks. Human verification is required before sales claims; do not circumvent robots.txt, CAPTCHA or site access restrictions.</footer></main>
 <script>document.querySelectorAll('[data-filter]').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('[data-filter]').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.prospect').forEach(x=>{x.hidden=b.dataset.filter!=='all'&&x.dataset.kind!==b.dataset.filter;});}));document.querySelectorAll('[data-copy]').forEach(b=>b.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(b.dataset.copy);b.textContent='Copied!';}catch(e){b.textContent='Select text to copy';}}));</script></body></html>'''
     doc = (doc.replace('__REV__',str(counts['Review first']))
            .replace('__DISC__',str(counts['Discovery fit']))
-           .replace('__MAN__',str(counts['Manual review']))
+           .replace('__MAN__',str(counts['Not assessable']))
            .replace('__CARDS__','\n'.join(tiles)))
     output.write_text(doc, encoding='utf-8')
 
@@ -238,7 +254,7 @@ def main(argv=None):
         writer.writeheader()
         writer.writerows(r.row() for r in records)
     print(f'Created {out / "opportunity_dashboard.html"} and {path}')
-    for name in ('Review first','Discovery fit','Manual review'):
+    for name in ('Review first','Discovery fit','Not assessable'):
         print(f'{name}: {sum(r.bucket==name for r in records)}')
     return 0
 

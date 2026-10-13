@@ -48,16 +48,16 @@ class ProspectDashboardTests(unittest.TestCase):
         self.assertEqual(p.bucket,'Discovery fit')
         self.assertIn('no identified defect',p.confidence)
 
-    def test_blocked_returns_manual(self):
+    def test_blocked_is_set_aside(self):
         p=d.analyse(sample(status='robots_blocked',screenshot=''))
-        self.assertEqual(p.bucket,'Manual review')
-        self.assertIn('respect',p.evidence)
+        self.assertEqual(p.bucket,'Not assessable')
+        self.assertIn('restricts',p.evidence)
         self.assertFalse(p.screenshot)
 
     def test_unrecognised_search_homepage_not_product_evidence(self):
         p=d.analyse(sample(status='inconclusive',screenshot='screenshots/homepage.png'))
-        self.assertEqual(p.bucket,'Manual review')
-        self.assertIn('not product-search evidence',p.evidence)
+        self.assertEqual(p.bucket,'Not assessable')
+        self.assertIn('could not be captured',p.evidence)
 
     def test_report_safe_escaped_and_screenshot_guard(self):
         with tempfile.TemporaryDirectory() as td:

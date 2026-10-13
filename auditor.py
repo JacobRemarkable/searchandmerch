@@ -23,7 +23,7 @@ from urllib.robotparser import RobotFileParser
 
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeoutError, Error as PWError
 
-USER_AGENT = "RemarkableRetailSiteAuditor/2.0 (low-volume public-site QA; human review required)"
+USER_AGENT = "RemarkableRetailSiteAuditor/4.0 (low-volume public-site QA; human review required)"
 BLOCK_TEXT = re.compile(r"captcha|are you (a )?human|unusual traffic|access denied|please verify you are human|cloudflare challenge|just a moment\.\.\.", re.I)
 NO_RESULTS_TEXT = re.compile(r"no (products|results|items|matches) (were )?(found|available)|0 results|nothing (found|matches)|your search (returned|did not match)|couldn't find any|sorry, no", re.I)
 STOCK_TEXT = re.compile(r"(?:out\s+of\s+stock|sold\s+out|currently unavailable|unavailable online)", re.I)
@@ -352,6 +352,116 @@ def find_search(page, robots_cache=None):
                 found = visible_first(page, SEARCH_INPUT)
                 if found is not None:
                     return found
+        except Exception:
+            continue
+    # Final safe fallback for icon-only magnifying-glass controls. A search SVG
+    # may have no text, title, search class, or accessible name. Limit candidates
+    # to SVGs with circle+handle geometry inside the header, and test for an
+    # actual search input afterwards. Never click arbitrary header icons.
+    try:
+        candidates = page.locator('header svg:has(circle):has(path), header svg:has(circle):has(line), header svg:has(circle):has(polyline)')
+        for i in range(min(candidates.count(), 12)):
+            svg = candidates.nth(i)
+            # SVGs without intrinsic dimensions may report invisible even when
+            # their clickable parent is displayed. Check the parent below.
+            # Search marks have a circular glass and a diagonal handle; reject
+            # person/account, bag, and other multi-path header icons.
+            is_magnifier = svg.evaluate(r'''(el) => {
+                const c=el.querySelector('circle'), paths=[...el.querySelectorAll('line,path,polyline')];
+                if (!c || paths.length>3 || !paths.length) return false;
+                const radius=parseFloat(c.getAttribute('r')||'0');
+                if (!(radius>2)) return false;
+                return paths.some(p=> {
+                  const x1=parseFloat(p.getAttribute('x1')), y1=parseFloat(p.getAttribute('y1')),
+                        x2=parseFloat(p.getAttribute('x2')), y2=parseFloat(p.getAttribute('y2'));
+                  if ([x1,y1,x2,y2].every(Number.isFinite)) return Math.abs(x2-x1)>1 && Math.abs(y2-y1)>1;
+                  const d=p.getAttribute('d')||'';
+                  // Straight diagonal handle starting outside a magnifier's lens;
+                  // reject person/account curves and shopping-bag outlines.
+                  if (/[aAcCqQsStThHvVzZ]/.test(d)) return false;
+                  const nums=(d.match(/-?\d+(?:\.\d+)?/g)||[]).map(Number);
+                  const cx=parseFloat(c.getAttribute('cx')||'0');
+                  const cy=parseFloat(c.getAttribute('cy')||'0');
+                  return /[mMlL]/.test(d) && nums.length>=4 &&
+                         nums[0]>(cx+radius/2) && nums[1]>(cy+radius/2);
+
+                });
+              }''')
+            if not is_magnifier:
+                continue
+            ancestor = svg.locator('xpath=ancestor-or-self::*[self::button or self::a or @role="button"][1]')
+            if ancestor.count() == 0 or not ancestor.first.is_visible():
+                continue
+            trigger=ancestor.first
+            if trigger.evaluate('(el)=>el.tagName.toLowerCase()==="a"'):
+                href=trigger.get_attribute('href') or ''
+                target=urljoin(page.url,href)
+                if urlparse(target).hostname!=urlparse(page.url).hostname:
+                    continue
+                if robots_cache is not None and not robots_allows(target,robots_cache)[0]:
+                    continue
+            try:
+                trigger.click(timeout=2200)
+                page.wait_for_timeout(400)
+                if robots_cache is not None and not robots_allows(page.url,robots_cache)[0]:
+                    raise RuntimeError('ROBOTS_BLOCKED: search control navigated to restricted page')
+                field=visible_first(page, SEARCH_INPUT)
+                if field is not None:
+                    return field
+            except RuntimeError:
+                raise
+            except Exception:
+                continue
+    except RuntimeError:
+        raise
+    except Exception:
+        pass
+    return None
+
+
+def find_public_category(page, website, robots_cache, pause):
+    """Fallback only to publicly permitted product/category pages, not search endpoints.
+
+    No requests are made to disallowed pages. This offers a merchandising *view*,
+    not any evidence of search relevance or a broken website.
+    """
+    anchors=page.locator('a[href]')
+    candidates=[]
+    for i in range(min(anchors.count(), 150)):
+        link=anchors.nth(i)
+        try:
+            href=link.get_attribute('href') or ''
+            url=page.evaluate('(href)=>new URL(href,document.baseURI).href',href)
+            parsed=urlparse(url)
+            path=parsed.path.lower().strip('/')
+            if (parsed.hostname!=urlparse(website).hostname or
+                not path or re.search(r'account|login|cart|checkout|search|blog|policy|privacy|contact|about|wishlist',path)):
+                continue
+            label=((link.inner_text(timeout=350) or '')+' '+path).lower()
+            if not re.search(r'collections?|categor(?:y|ies)|shop|products?|homeware|accessories|sale|all.items',label):
+                continue
+            # Avoid overly specific product detail pages, which don't represent a category.
+            if ('/products/' in parsed.path.lower()) or (len(path.split('/'))>4):
+                continue
+            if url not in candidates:
+                candidates.append(url)
+        except Exception:
+            continue
+    # Capped to two navigations, to remain low volume and predictable.
+    for url in candidates[:2]:
+        if not robots_allows(url,robots_cache)[0]:
+            continue
+        try:
+            load_public(page,url,robots_cache,pause)
+            dismiss_overlays(page)
+            products=extract_products(page)
+            if products:
+                return {'url':page.url,'products':products,
+                        'sort_control':detect_sort(page)[0],
+                        'filters':detect_filters(page)}
+        except RuntimeError as e:
+            if str(e).startswith(('ROBOTS_BLOCKED','ACCESS_BLOCKED')):
+                return None
         except Exception:
             continue
     return None
@@ -690,6 +800,7 @@ def test_site(browser, row, out, robots_cache, pause, screenshot=True):
     try:
         notes = []
         for number, query in enumerate(queries, 1):
+            method = 'unknown'
             qr = {'query':query, 'status':'inconclusive', 'search_method':'unknown',
                   'search_url':'', 'search_input_found':'unknown', 'product_cards_detected':0,
                   'products':[], 'out_of_stock_cards':0, 'query_title_overlap':'not_assessed',
@@ -703,11 +814,26 @@ def test_site(browser, row, out, robots_cache, pause, screenshot=True):
                 method, searchurl, found = do_search(page, query, template, website, robots_cache, pause)
                 qr['search_method'], qr['search_url'], qr['search_input_found'] = method, searchurl, found
                 if method == 'not_available':
-                    qr['notes'] = 'Search control not recognised; manual review required (homepage screenshot only, not search evidence)'
-                    # A screenshot still lets sales staff inspect the visible storefront.
-                    # Do not label it as search testing or score any defect from it.
+                    # Rather than asking a salesperson to investigate, look once
+                    # for a public, permitted category page as a limited Merch view.
+                    fallback=find_public_category(page,website,robots_cache,pause)
+                    if fallback:
+                        qr['status']='category_observed'
+                        qr['search_method']='category_fallback'
+                        qr['search_url']=fallback['url']
+                        qr['products']=fallback['products']
+                        qr['product_cards_detected']=len(fallback['products'])
+                        qr['out_of_stock_cards']=sum(p['sold_out_badge'] for p in fallback['products'])
+                        qr['sort_control']=fallback['sort_control']
+                        qr['filter_control'],qr['filter_labels']=fallback['filters']
+                        qr['notes']='Category page inspected; no search relevance claim.'
+                        audit.status='category_only'
+                        audit.observations.append({'type':'fact','query':'category browsing',
+                            'text':f"{len(fallback['products'])} identifiable tiles on permitted category page"})
+                    else:
+                        qr['notes']='Search not detected and no permitted category results captured.'
                     if screenshot and number == 1:
-                        name = f'screenshots/{safe_slug(company)}-homepage.png'
+                        name = f'screenshots/{safe_slug(company)}-'+('category' if fallback else 'homepage')+'.png'
                         try:
                             page.screenshot(path=str(out / name), animations='disabled',
                                             full_page=False, timeout=8000)
@@ -754,7 +880,10 @@ def test_site(browser, row, out, robots_cache, pause, screenshot=True):
             if audit.status in ('robots_blocked', 'access_blocked', 'site_error'):
                 notes.append(qr['notes'])
                 break
-        if audit.status not in ('robots_blocked', 'access_blocked', 'site_error'):
+            if method == 'not_available':
+                # Don't repeat two more guaranteed-failing search attempts.
+                break
+        if audit.status not in ('robots_blocked', 'access_blocked', 'site_error', 'category_only'):
             audit.status = 'tested' if audit.queries_tested else 'inconclusive'
         first = audit.query_results[0] if audit.query_results else None
         if first:
@@ -793,8 +922,12 @@ def test_site(browser, row, out, robots_cache, pause, screenshot=True):
             else:
                 audit.outreach_angle = ('I was looking at how customers find products in your '+queries[0]+
                                         ' range. Is onsite discovery a priority for your team?')
+        elif audit.status=='category_only':
+            audit.outreach_angle = ('Public category product listings were observed. Ask how the trading team '
+                                    'manages ranking, stock visibility and category merchandising; '
+                                    'no search weakness established.')
         else:
-            audit.outreach_angle = 'No evidence-backed outreach claim; verify the site manually first'
+            audit.outreach_angle = 'No evidence-backed outreach claim available from automated checks.'
         audit.notes = ' | '.join(notes + [q['notes'] for q in audit.query_results if q['notes']])[:1200]
     finally:
         context.close()

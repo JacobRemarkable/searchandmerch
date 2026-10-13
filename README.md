@@ -1,73 +1,42 @@
-# Remarkable Commerce — Search & Merch Prospect Opportunity Board (v3)
+# Remarkable Commerce — Search & Merch Opportunity Board v4
 
-**Purpose:** Find a credible reason to contact a retailer. This is a visual sales-research tool, not a technical site-quality score or a proof of lost conversions.
+**Purpose:** turn a short list of retailer domains into evidence-backed prospecting conversations without assigning manual work to every site that cannot be tested.
 
-The browser auditor checks a few public search results, records screenshots and samples the visible product tiles. The new **Opportunity Board** puts those screenshots next to a short Search angle, Merch angle and LinkedIn discovery question.
+## What changed
 
-## Install v3 in your existing GitHub Codespace
+- Recognises more *unlabelled magnifying-glass SVG* search triggers (where the icon has a circular lens and diagonal handle). If these do not work, it will not randomly click unrelated links.
+- If no search control is available, tries **at most two visible public category links** (robots.txt permitting). Captures visible product tiles and merchandising controls, not an unproven search problem.
+- **Stops after a failed first search lookup**, instead of making the same failed discovery three times.
+- The opportunity dashboard now has three outcomes:
+  - **Review first**: a real observed anomaly from sampled search results deserves confirmation.
+  - **Discovery fit**: live search or category evidence suggests a commercially relevant conversation; no defect is alleged.
+  - **Not assessable**: restricted or inconclusive. Automatically **set aside**, not added to a manual testing queue.
+- Includes focused browser fixtures for unlabelled search icons, public category fallback, and exclusion of restricted sites.
 
-Upload `Remarkable_Opportunity_Board_v3.zip` to your Codespace, then run:
+## Install in the existing repo
+
+1. Upload `Remarkable_Search_Merch_v4.zip` into `/workspaces/searchandmerch` on Codespaces.
+2. Run:
 
 ```bash
 cd /workspaces/searchandmerch
-unzip -o Remarkable_Opportunity_Board_v3.zip -d .
-python -m py_compile auditor.py prospect_dashboard.py
-git add auditor.py prospect_dashboard.py README.md prospects.csv requirements.txt tests .github/workflows/audit.yml
-git commit -m "Add Remarkable Search and Merch opportunity board"
+unzip -o Remarkable_Search_Merch_v4.zip -d .
+git add auditor.py prospect_dashboard.py README.md requirements.txt prospects.csv tests .github/workflows/audit.yml
+git commit -m "Prioritise visible Search and Merch opportunities v4"
 git push origin main
 ```
 
-Open [GitHub Actions](https://github.com/JacobRemarkable/searchandmerch/actions/workflows/audit.yml), choose **Run workflow**, select `main`, and run. The workflow executes local tests before the live scan.
+3. Run the `Remarkable prospect website audit` workflow on `main` in GitHub Actions. The workflow installs Chromium and runs all tests. Local Codespaces browser setup is not necessary.
+4. Download the **remarkable-prospect-audit** Actions artifact and open `opportunity_dashboard.html`. The file `opportunity_shortlist.csv` is your lead triage export.
 
-On completion, download and **extract** the `remarkable-prospect-audit` artifact. Open **`opportunity_dashboard.html`**; this is the main sales-facing report. Extracting matters, because screenshots are in the adjacent `screenshots/` folder.
+## Limitations / appropriate use
 
-## What the new board shows
+- The changes have been verified against offline browser fixtures. **We have not tested v4 live against these retailers yet.** Icons rendered as CSS pseudo-elements or unusual SVGs may still be missed.
+- A product category screenshot cannot establish onsite search relevance, and existing sorting/filter controls aren't evidence of a faulty platform.
+- A blocked retailer is not a low-quality retailer. It simply has **no permitted evidence** for this automated scan. Do not evade robots.txt, access blocks or CAPTCHAs.
+- Never send a specific defect accusation without rechecking the supporting screenshot and behaviour manually. Only the strongest candidates require that verification.
+- Keep the repository private when adding confidential target lists. Public repositories can expose prospect information and reports.
 
-- **Review first:** A visible signal may be worth investigating (e.g., unavailable products in sampled results, very low literal title-term overlap, or technical exclusion syntax displayed in the search heading). This is **not a confirmed defect**.
-- **Discovery fit:** Search results were observed and could support a Search/Merch conversation, but **no specific defect was identified**.
-- **Manual review:** The test was inconclusive or the site restricted automated access. The auditor won't label it poorly performing or invent a weakness. For permitted storefronts where search is not recognised, v3 now saves a homepage-only screenshot to aid manual inspection.
-- **Screenshot-first cards:** View the search-results screenshot, sampled products, the question to ask, and a link to the result page. The user can filter by lead category and copy the opener.
+## Input
 
-## Outputs
-
-| File | What to do with it |
-|---|---|
-| `opportunity_dashboard.html` | **Start here.** Visual, sortable-by-priority opportunity cards and screenshots |
-| `opportunity_shortlist.csv` | One retailer per row. Paste/import the prospecting angles into HubSpot |
-| `report.html` | Original evidence-centric technical report (v2, retained) |
-| `prospect_audit.csv` | One row per retailer with raw audit signals |
-| `query_audit.csv` | One row per search query (includes captured search heading) |
-| `evidence.json` | Full structured observations; use to regenerate the board |
-| `screenshots/` | The actual browser screenshots; keep next to HTML when sharing |
-
-## Add prospects
-
-Edit `prospects.csv` (no coding required):
-
-```csv
-company,website,query,queries,search_url_template
-Example Store,https://www.example.com,red boots,leather boots|women's trainers,
-```
-
-`company`, `website` and `query` are required. `queries` adds up to two extra searches separated with `|` (max three total). The last column is optional, for a **verified** search URL template like `https://www.example.com/search?q={query}`. A template is checked against robots.txt like any other page.
-
-Keep batches at 5–20 stores; the GitHub job times out after 45 minutes. `robots.txt`, CAPTCHA, access blocks, logins, private pages, purchases and automated contact extraction remain off-limits.
-
-## Sales-team use: 3-minute validation before outreach
-
-1. Open an account card and enlarge its screenshot.
-2. Repeat the query in a normal browser. Make sure the observed issue is real, still present, and not an intentional ecommerce choice.
-3. If there is no verified issue, talk about opportunities and business objectives **without claiming the site is broken**.
-4. Log the result in HubSpot and use the provided discovery question, personalised to the observation.
-
-The board avoids fake conversion scores, made-up potential ROI and unverified competitive technology claims. A low keyword/title match is a **weak heuristic**, since valid synonyms and product descriptions may not contain the query words. A visible sort/filter control is **not** evidence of a problem.
-
-## Offline processing (without rescanning)
-
-If you have an old report artifact and want the new opportunity view:
-
-```bash
-python prospect_dashboard.py --input results/evidence.json --out results
-```
-
-The scheduled workflow remains **disabled** until real-world accuracy has been checked. The GitHub repository is currently public; make it private before placing confidential prospect research or client information in the repo.
+`prospects.csv` supports: `company,website,query,queries,search_url_template`. Extra queries use `|` delimiters. A maximum of three searches is attempted per retailer, and at most 20 websites per GitHub Actions run.
