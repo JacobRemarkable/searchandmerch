@@ -33,6 +33,12 @@ jobs:
           if [ -f results/evidence.json ]; then
             python prospect_dashboard.py --input results/evidence.json --out results
           fi
+      - name: Create commercial outreach shortlist
+        if: always()
+        run: |
+          if [ -f results/evidence.json ]; then
+            python commercial_outreach.py --input results/evidence.json --context prospect_context.csv --out results
+          fi
       - name: Upload report and evidence
         if: always()
         uses: actions/upload-artifact@v4

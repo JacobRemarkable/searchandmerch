@@ -1,42 +1,46 @@
-# Remarkable Commerce — Search & Merch Opportunity Board v4
+# Remarkable Commerce | Search & Merch Prospecting v5
 
-**Purpose:** turn a short list of retailer domains into evidence-backed prospecting conversations without assigning manual work to every site that cannot be tested.
+## What's new
 
-## What changed
+This update expands the existing six-site proof of concept to **20 curated UK retailer websites** and adds a commercial reporting layer.
 
-- Recognises more *unlabelled magnifying-glass SVG* search triggers (where the icon has a circular lens and diagonal handle). If these do not work, it will not randomly click unrelated links.
-- If no search control is available, tries **at most two visible public category links** (robots.txt permitting). Captures visible product tiles and merchandising controls, not an unproven search problem.
-- **Stops after a failed first search lookup**, instead of making the same failed discovery three times.
-- The opportunity dashboard now has three outcomes:
-  - **Review first**: a real observed anomaly from sampled search results deserves confirmation.
-  - **Discovery fit**: live search or category evidence suggests a commercially relevant conversation; no defect is alleged.
-  - **Not assessable**: restricted or inconclusive. Automatically **set aside**, not added to a manual testing queue.
-- Includes focused browser fixtures for unlabelled search icons, public category fallback, and exclusion of restricted sites.
+- `prospects.csv`: 20 target websites with three realistic, low-volume search queries each.
+- `prospect_context.csv`: pre-research hypotheses, suggested first product (Search, Merch, Both), buyer role and category. All platform technology remains **Unverified**. These are fit hypotheses, not claims about website problems, current vendors or budgets.
+- `sales_opportunities.html`: screenshot-led, sales-facing HTML cards with evidence, hypothesis, persona and a **draft** LinkedIn opener.
+- `sales_ready_shortlist.csv`: only accounts with usable public evidence and an actual local screenshot. Review-first anomalies require human verification before use. Other accounts are discovery-fit, not defects.
+- `all_target_status.csv`: includes every scanned retailer and states why excluded ones were set aside.
+- The existing `opportunity_dashboard.html` and technical evidence exports remain unchanged.
 
-## Install in the existing repo
+**Important:** Automated checks never send messages, create contacts, bypass robots.txt, access private accounts or infer lost revenue. A public site's automated access restriction is a hard stop, not a challenge to work around. The retailer's current search/commerce platform must be independently verified before platform-specific outreach. Check the account against Remarkable's current clients and HubSpot opportunities before outbound.
 
-1. Upload `Remarkable_Search_Merch_v4.zip` into `/workspaces/searchandmerch` on Codespaces.
-2. Run:
+## Install in existing repo
+
+Upload `Remarkable_Search_Merch_v5.zip` to the Codespaces workspace for `JacobRemarkable/searchandmerch`, then run:
 
 ```bash
 cd /workspaces/searchandmerch
-unzip -o Remarkable_Search_Merch_v4.zip -d .
-git add auditor.py prospect_dashboard.py README.md requirements.txt prospects.csv tests .github/workflows/audit.yml
-git commit -m "Prioritise visible Search and Merch opportunities v4"
+unzip -o Remarkable_Search_Merch_v5.zip -d .
+git add auditor.py prospect_dashboard.py commercial_outreach.py prospects.csv prospect_context.csv README.md requirements.txt tests .github/workflows/audit.yml
+git commit -m "Expand Remarkable prospect audit to 20 retailers and add sales shortlist"
 git push origin main
 ```
 
-3. Run the `Remarkable prospect website audit` workflow on `main` in GitHub Actions. The workflow installs Chromium and runs all tests. Local Codespaces browser setup is not necessary.
-4. Download the **remarkable-prospect-audit** Actions artifact and open `opportunity_dashboard.html`. The file `opportunity_shortlist.csv` is your lead triage export.
+Launch **GitHub → Actions → Remarkable prospect website audit → Run workflow**, branch `main`.
 
-## Limitations / appropriate use
+Tests run on GitHub's Ubuntu runner before website checks. You do not need to configure Chromium in Codespaces locally. The workflow has a 45-minute timeout; it may finish faster. If it times out, reduce the input to 10 sites and rerun the remaining 10 separately.
 
-- The changes have been verified against offline browser fixtures. **We have not tested v4 live against these retailers yet.** Icons rendered as CSS pseudo-elements or unusual SVGs may still be missed.
-- A product category screenshot cannot establish onsite search relevance, and existing sorting/filter controls aren't evidence of a faulty platform.
-- A blocked retailer is not a low-quality retailer. It simply has **no permitted evidence** for this automated scan. Do not evade robots.txt, access blocks or CAPTCHAs.
-- Never send a specific defect accusation without rechecking the supporting screenshot and behaviour manually. Only the strongest candidates require that verification.
-- Keep the repository private when adding confidential target lists. Public repositories can expose prospect information and reports.
+## Results
 
-## Input
+Download the **remarkable-prospect-audit** artifact from the completed GitHub Action, unzip it, and open:
 
-`prospects.csv` supports: `company,website,query,queries,search_url_template`. Extra queries use `|` delimiters. A maximum of three searches is attempted per retailer, and at most 20 websites per GitHub Actions run.
+- `sales_opportunities.html` — start here. Screenshot, signal, context, decision-maker and draft LinkedIn message.
+- `sales_ready_shortlist.csv` — evidence-backed, triaged rows ready for human review before HubSpot import.
+- `all_target_status.csv` — all scanned sites and why any were set aside.
+- `opportunity_dashboard.html` — previous technical/prospecting board.
+- `query_audit.csv`, `prospect_audit.csv`, `evidence.json`, `screenshots/` — supporting evidence.
+
+**The first 20-site audit has not yet been run.** The proof-of-concept sales report was tested against a completed six-site Version 4 run, with four included and two excluded.
+
+## How to maintain
+
+When adding brands, keep `prospects.csv` and `prospect_context.csv` aligned by exact company name. Each `lead_with` value must be `Search`, `Merch`, or `Both`. The workflow is currently capped at 20 websites/run. Respect site access restrictions, keep volume modest and do not publish confidential CRM information in this public repository. Consider switching it to private.
